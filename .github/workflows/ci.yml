@@ -34,9 +34,8 @@ jobs:
         run: bandit -r app
 
       - name: Run automated tests
-        run: pythom -m pytest -v
+        run: python -m pytest -v
 
       - name: Build Docker image
         run: docker build -t devops-pipeline:${{ github.sha }} .
 
-        
