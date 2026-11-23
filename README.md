@@ -125,11 +125,11 @@ Current implementation:
 
 - [x] Development environment configured
 - [x] Flask and pytest dependencies installed
-- [ ] Flask application
-- [ ] Automated tests
-- [ ] Static analysis
-- [ ] Security analysis
-- [ ] Docker containerisation
+- [x] Flask application
+- [x] Automated tests
+- [x] Static analysis
+- [x] Security analysis
+- [x] Docker containerisation
 - [ ] GitHub Actions CI pipeline
 - [ ] Trivy vulnerability scanning
 - [ ] AWS EC2 deployment
