@@ -82,5 +82,10 @@ jobs:
 
       - name: Terraform plan
         working-directory: terraform
-        run: terraform plan -input=false -no-color
+        run: terraform plan -input=false
+
+      - name: Terraform apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: terraform apply -auto-approve -input=false
 
