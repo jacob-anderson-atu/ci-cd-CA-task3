@@ -1,0 +1,83 @@
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-20.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+resource "aws_security_group" "pipeline" {
+    name          = "${var.project_name}-sg"
+    description   = "Security group for DevOps pipeline"
+    vpc_id        = data.aws_vpc.default.id
+
+    tags = {
+        Name    = "${var.project_name}-sg"
+        Project = var.project_name
+    }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "http" {
+    security_group_id = aws_security_group.pipeline.id
+
+    description = "Public HTTP access"
+    from_port = 80
+    to_port = 80
+    ip_protocol = "tcp"
+    cidr_ipv4 = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
+    security_group_id = aws_security_group.pipeline.id
+
+    description = "Restrictred SSH access"
+    from_port = 22
+    to_port = 22
+    ip_protocol = "tcp"
+    cidr_ipv4 = var.ssh_cidr
+}
+
+resource "aws_vpc_security_group_egress_rule" "all" {
+    security_group_id = aws_security_group.pipeline.id
+
+    description = "Allow outbound traffic"
+    ip_protocol = "-1"
+    cidr_ipv4 = "0.0.0.0/0"
+}
+
+resource "aws_instance" "pipeline" {
+    ami = data.aws_ami.ubuntu.id
+    instance_type = var.instance_type
+    key_name = var.key_name
+    vpc_security_group_ids = [aws_security_group.pipeline.id]
+    associate_public_ip_address = true
+
+    user_data = file("${path.module}/user-data.sh")
+
+    root_block_device {
+      volume_type = "gp3"
+      encrypted = true
+      delete_on_termination = true
+    }
+
+    tags = {
+        Name    = var.project_name
+        Project = var.project_name
+    }
+}
