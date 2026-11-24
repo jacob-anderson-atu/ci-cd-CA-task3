@@ -216,15 +216,30 @@ jobs:
       - name: Wait for deployment
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          set +e
+
           aws ssm wait command-executed \
             --region "${{ vars.AWS_REGION }}" \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID"
 
+          WAITER_EXIT=$?
+
+          echo "Deployment command result:"
+
           aws ssm get-command-invocation \
             --region "${{ vars.AWS_REGION }}" \
             --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
+            --instance-id "$INSTANCE_ID" \
+            --query '{
+              Status:Status,
+              StatusDetails:StatusDetails,
+              ResponseCode:ResponseCode,
+              StandardOutput:StandardOutputContent,
+              StandardError:StandardErrorContent
+            }'
+
+          exit "$WAITER_EXIT"
 
       - name: Verify public deployment
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

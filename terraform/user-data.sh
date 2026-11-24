@@ -1,13 +1,7 @@
 #!/bin/bash
 set -e
 
-# Ensure AWS Systems Manager Agent is installed and running
-if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
-    snap install amazon-ssm-agent --classic
-fi
 
-systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-systemctl restart snap.amazon-ssm-agent.amazon-ssm-agent.service
 
 apt-get update
 apt-get install -y ca-certificates curl
@@ -36,6 +30,14 @@ apt-get install -y \
 usermod -aG docker ubuntu
 systemctl enable docker
 systemctl start docker
+
+# Ensure AWS Systems Manager Agent is installed and running
+if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
+    snap install amazon-ssm-agent --classic
+fi
+
+systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+systemctl restart snap.amazon-ssm-agent.amazon-ssm-agent.service
 
 touch /var/log/devops-bootstrap-complete
 
