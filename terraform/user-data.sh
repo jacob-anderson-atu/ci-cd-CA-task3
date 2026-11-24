@@ -7,7 +7,7 @@ apt-get update
 apt-get install -y ca-certificates curl
 
 install -m 0755 -d /etc/apt/keyrings
-
+# install Docker from official repo
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
   -o /etc/apt/keyrings/docker.asc
 
@@ -26,7 +26,7 @@ apt-get install -y \
   containerd.io \
   docker-buildx-plugin \
   docker-compose-plugin
-
+# allow ubuntu user to run docker
 usermod -aG docker ubuntu
 systemctl enable docker
 systemctl start docker
@@ -38,6 +38,6 @@ fi
 
 systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
 systemctl restart snap.amazon-ssm-agent.amazon-ssm-agent.service
-
+# deployment script waits for this marker before using Docker
 touch /var/log/devops-bootstrap-complete
 

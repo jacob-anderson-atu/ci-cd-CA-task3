@@ -8,6 +8,7 @@ terraform {
     }
   }
 
+  # keep state outside the temporary GitHub Actions runner in a manually created bucket
   backend "s3" {
     bucket       = "jacob-devops-pipeline-tfstate-826653639386-us-east-1-an"
     key          = "devops-pipeline/terraform.tfstate"

@@ -8,5 +8,5 @@ providers:
     disableDeleteion: false
     editable: true
     updateIntervalSeconds: 10
-    options:
+    options: # load dashboard mounted by docker compose
       path: /var/lib/grafana/dashboards

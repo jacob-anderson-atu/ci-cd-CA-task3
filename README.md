@@ -1,139 +1,81 @@
-Task 3 CA CI/CD pipeline ATU PgDip DevOps
+# DevOps Pipeline
 
-# DevOps CI/CD Pipeline
+This project is a small Flask web application that I used to build a complete CI/CD pipeline.
 
-A lightweight end-to-end DevOps pipeline demonstrating automated testing, static analysis, security scanning, containerisation, cloud deployment, and application monitoring.
+The application itself is deliberately simple. The main focus is the pipeline around it, including automated testing, security scanning, containerisation, AWS deployment, and monitoring.
 
-The project uses a small Python Flask application as the workload, with the primary focus on the CI/CD pipeline and supporting DevOps practices.
+## Pipeline Overview
 
-## Planned Pipeline
+The pipeline is built with GitHub Actions and is split into three jobs:
 
-```text
-Developer
-    |
-    v
-Git + GitHub
-    |
-    v
-GitHub Actions
-    |
-    +--> Automated Testing (pytest)
-    |
-    +--> Static Analysis (Ruff)
-    |
-    +--> Security Analysis (Bandit)
-    |
-    +--> Docker Build
-    |
-    +--> Container Vulnerability Scan (Trivy)
-    |
-    v
-AWS EC2 Deployment
-    |
-    v
-Docker Compose
-    |
-    +--> Flask Application
-    +--> Prometheus
-    +--> Grafana
-```
+1. **Quality and testing**
+   - Ruff
+   - Bandit
+   - pytest
 
-## Technology Stack
+2. **Container build and security**
+   - Docker
+   - Trivy
+   - GitHub Container Registry
 
-- **Python / Flask** - Sample web application
-- **Git / GitHub** - Source code management
-- **GitHub Actions** - CI/CD automation
-- **pytest** - Automated application testing
-- **Ruff** - Python static analysis and linting
-- **Bandit** - Python security analysis
-- **Trivy** - Container vulnerability scanning
-- **Docker** - Application containerisation
-- **Docker Compose** - Container orchestration
-- **AWS EC2** - Cloud deployment environment
-- **Prometheus** - Application metrics collection
-- **Grafana** - Metrics visualisation and monitoring
+3. **Infrastructure and deployment**
+   - Terraform
+   - AWS EC2
+   - AWS Systems Manager
+   - Docker Compose
+   - Deployment health checks
 
-## Pipeline Stages
+Pull requests run the tests, security checks, Docker build, and Terraform plan.
 
-The pipeline is designed to execute the following stages automatically:
+When a pull request is merged into `main`, the pipeline pushes the validated Docker image to GitHub Container Registry, applies the Terraform configuration, and deploys the application automatically to AWS.
 
-1. Checkout application source code.
-2. Install application dependencies.
-3. Run static code analysis.
-4. Run security analysis.
-5. Execute automated tests.
-6. Build the Docker image.
-7. Scan the container image for vulnerabilities.
-8. Deploy the validated application to AWS EC2.
-9. Monitor the deployed application using Prometheus and Grafana.
+## Deployment Design
 
-A failure in a required validation stage will prevent the application from progressing to deployment.
+Terraform creates the EC2 environment and stores its state remotely in an S3 bucket.
 
-## Application
+GitHub Actions authenticates to AWS using OIDC instead of stored AWS access keys. The application is deployed through AWS Systems Manager rather than GitHub connecting directly to the server with SSH.
 
-The project uses a deliberately small Flask web application so that the focus remains on the software delivery pipeline rather than application complexity.
+The application image is tagged with the Git commit SHA, so the version deployed to EC2 is the same version that passed the pipeline checks.
 
-Initial endpoints include:
+The EC2 instance runs three containers through Docker Compose:
 
-- `/` - Application information and version
-- `/health` - Application health status
+- Flask application
+- Prometheus
+- Grafana
 
-Additional metrics will be exposed for Prometheus as monitoring is implemented.
+## Monitoring
 
-## Deployment
+The Flask application exposes metrics through a `/metrics` endpoint.
 
-Development is performed in an Ubuntu Linux virtual machine.
+Prometheus collects those metrics, and Grafana displays them in a provisioned dashboard. The dashboard includes:
 
-The completed pipeline will automatically deploy the containerised application to an AWS EC2 instance. Docker Compose will manage the application and monitoring services on the deployment host.
+- Request rate
+- Average response time
+- Total HTTP requests
+- HTTP 5xx error ratio
 
-## Repository Structure
+## Main Tools
+
+- Git and GitHub
+- GitHub Actions
+- Python and Flask
+- pytest, Ruff, and Bandit
+- Docker and Docker Compose
+- Trivy
+- Terraform
+- AWS EC2, S3, IAM, OIDC, and Systems Manager
+- GitHub Container Registry
+- Prometheus and Grafana
+
+## Project Structure
 
 ```text
-.
-├── .github/
-│   └── workflows/
-├── app/
-├── tests/
-├── monitoring/
-├── docs/
-├── Dockerfile
-├── compose.yaml
-├── requirements.txt
-└── README.md
+app/             Flask application
+tests/           Automated tests
+terraform/       AWS infrastructure
+monitoring/      Prometheus and Grafana configuration
+scripts/         EC2 deployment script
+.github/         GitHub Actions workflow
+compose.yaml     Application and monitoring stack
+Dockerfile       Application container image
 ```
-
-The repository structure will be expanded as each pipeline stage is implemented.
-
-## Project Goals
-
-The project is intended to demonstrate:
-
-- Continuous Integration and Continuous Deployment
-- Automated software testing
-- Automated security and quality checks
-- Containerised application delivery
-- Cloud deployment
-- Infrastructure monitoring and observability
-- Reproducible DevOps workflows
-- Secure handling of deployment credentials and secrets
-
-## Status
-
-**In Development**
-
-Current implementation:
-
-- [x] Development environment configured
-- [x] Flask and pytest dependencies installed
-- [x] Flask application
-- [x] Automated tests
-- [x] Static analysis
-- [x] Security analysis
-- [x] Docker containerisation
-- [x] GitHub Actions CI pipeline
-- [x] Trivy vulnerability scanning
-- [x] AWS EC2 deployment
-- [x] Docker Compose deployment
-- [x] Prometheus monitoring
-- [x] Grafana dashboard
-- [ ] Automated end-to-end deployment
