@@ -55,6 +55,7 @@ resource "aws_vpc_security_group_egress_rule" "all" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+# allow instance to register under SSM
 resource "aws_iam_role" "ec2_ssm" {
   name = "${var.project_name}-ec2-ssm-role"
 
@@ -96,9 +97,9 @@ resource "aws_instance" "pipeline" {
   vpc_security_group_ids      = [aws_security_group.pipeline.id]
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ec2_ssm.name
-
+  # bootstrap docker and SSM agent
   user_data = file("${path.module}/user-data.sh")
-
+  # ensure SSM policy is attached
   depends_on = [aws_iam_role_policy_attachment.ssm_core]
 
   root_block_device {

@@ -196,7 +196,7 @@ jobs:
 
           IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/devops-pipeline:${{ github.sha }}"
           RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/archive/${{ github.sha }}.tar.gz"
-
+          # Encode deployment script to avoid nested YAML, JSON, and shell quoting
           SCRIPT_BASE64=$(base64 -w 0 scripts/deploy-stack.sh)
 
           jq -n \
@@ -237,7 +237,7 @@ jobs:
           echo "Waiting for SSM deployment command $COMMAND_ID..."
 
           FINAL_STATUS=""
-
+          # standard AWS waiter ended up being too short for my compose deployment
           for i in {1..60}; do
             STATUS=$(aws ssm get-command-invocation \
               --region "${{ vars.AWS_REGION }}" \

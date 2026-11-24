@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${APP_IMAGE:-devops-pipeline:local}
+    image: ${APP_IMAGE:-devops-pipeline:local} # pipeline uses GHCR SHA tag, local builds use fallback image
     container_name: devops-pipeline
     restart: unless-stopped
     environment:
@@ -22,7 +22,7 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:9090:9090" # only exposed on loopback for grafana access
     depends_on:
       - app
     networks:
@@ -36,7 +36,7 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
+    volumes: 
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -50,7 +50,7 @@ services:
 networks:
   monitoring:
     driver: bridge
-
-volumes:
+# Preserve monitoring data across container restarts and redeployments
+volumes: 
   prometheus-data:
   grafana-data:

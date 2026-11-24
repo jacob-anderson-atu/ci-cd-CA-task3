@@ -43,7 +43,7 @@ if [ ! -f "$PASSWORD_FILE" ]; then
 fi
 
 chmod 600 "$PASSWORD_FILE"
-
+# supply image and grafana password without storing in repo
 {
     printf 'APP_IMAGE=%s\n' "$IMAGE"
     printf 'GRAFANA_ADMIN_PASSWORD='

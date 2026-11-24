@@ -1,9 +1,10 @@
-FROM python:3.15.2-slim
+# slim image to keep runtime small
+FROM python:3.15.2-slim 
 
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
+# copy dependency metadata
 COPY requirements.txt .
 
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
