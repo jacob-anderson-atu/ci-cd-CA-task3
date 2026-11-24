@@ -1,24 +1,21 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
-      - main
+      - main # merges or pushes directly to main
   pull_request:
     branches:
-      - main
+      - main # pull requests to main branch
 
-permissions:
+permissions: #GitHub perms
   contents: read
   id-token: write
   packages: write
 
-env:
-  TF_VAR_ssh_cidr: ${{ secrets.TF_VAR_SSH_CIDR }}
-
 jobs:
-  build-test-security:
-    name: Build, Test, and Security Checks
+  quality-and-test: #Python, Ruff, Bandit, Pytest
+    name: Quality and Automated Testing
     runs-on: ubuntu-latest
 
     steps:
@@ -43,6 +40,15 @@ jobs:
 
       - name: Run automated tests
         run: python -m pytest -v
+
+  build-and-security: #docker, Trivy, GHCR push
+    name: Container Build and Security Scan
+    needs: quality-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
       - name: Build Docker image
         run: docker build -t devops-pipeline:${{ github.sha }} .
@@ -75,11 +81,26 @@ jobs:
           docker push "$IMAGE:${{ github.sha }}"
           docker push "$IMAGE:latest"
 
+  infrastructure-and-deploy: #AWS OIDC, Terraform, AWS SSM, health checks
+    name: Infrastructure and Deployment
+    needs: build-and-security
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_ssh_cidr: ${{ secrets.TF_VAR_SSH_CIDR }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
@@ -113,4 +134,95 @@ jobs:
         run: |
           EC2_HOST=$(terraform output -raw public_ip)
           echo "EC2_HOST=$EC2_HOST" >> "$GITHUB_ENV"
+
+      - name: Get EC2 instance ID
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: |
+          INSTANCE_ID=$(terraform output -raw instance_id)
+          echo "INSTANCE_ID=$INTANCE_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for EC2 to become SSM managed
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "Waiting for instance $INSTANCE_ID to become available in Systems Manager..."
+
+          for i in {1..30}; do
+            STATUS=$(aws ssm describe-instance-information \
+              --region "${{ var.AWS_REGION }}" \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query "InstanceInformationList[0].PingStatus" \
+              --output text 2>/dev/null || true)
+
+            if [ "$STATUS" = "Online" ]; then
+              echo "Instance is online in Systems Manager."
+              exit 0
+            fi
+
+            echo "SSM not ready yet..."
+            sleep 10
+          done
+
+          echo "Timed out waiting for SSM."
+          exit 1
+
+      - name: Deploy application through AWS Systems Manager
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/devops-pipeline:${{ github.sha }}"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --region "${{ vars.AWS_REGION  }}" \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy devops-pipeline ${{ github.sha }}" \
+            --parameters "commands=[
+              \"docker pull $IMAGE\",
+              \"docker stop devops-pipeline || true\",
+              \"docker rm devops-pipeline || true\",
+              \"docker run -d --name devops-pipeline --restart unless-stopped -p 80:5000 $IMAGE\",
+              \"sleep 5\",
+              \"curl --fail http://localhost/health\"
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "COMMAND_ID=$COMMAND_ID" >> "$GITHUB_ENV"
+          echo "Deployment command: $COMMAND_ID"
+
+      - name: Wait for deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          aws ssm wait command-executed \
+            --region "${{ vars.AWS_REGION }}" \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID"
+
+          aws ssm get-command-invocation \
+            --region "${{ var.AWS_REGION }}" \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID"
+
+      - name: Verify public deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: |
+          APP_URL=$(terraform output -raw application_url)
+
+          echo "Checking $APP_URL/health"
+
+          for i in {1..12}; do
+            if curl --fail --silent "$APP_URL/health"; then
+              echo
+              echo "Deployment verified successfully."
+              exit 0
+            fi
+
+            sleep 5
+          done
+
+          echo "Public deployment health check failed."
+          exit 1
+
+
 
