@@ -189,46 +189,42 @@ jobs:
 
           exit 1
 
-      - name: Deploy containers through AWS Systems Manager
+      - name: Deploy monitoring stack through AWS Systems Manager
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          set -euo pipefail
+
           IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/devops-pipeline:${{ github.sha }}"
           RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/archive/${{ github.sha }}.tar.gz"
 
+          SCRIPT_BASE64=$(base64 -w 0 scripts/deploy-stack.sh)
+
+          jq -n \
+            --arg instance_id "$INSTANCE_ID" \
+            --arg image "$IMAGE" \
+            --arg release_url "$RELEASE_URL" \
+            --arg script_base64 "$SCRIPT_BASE64" \
+            '{
+              InstanceIds: [$instance_id],
+              DocumentName: "AWS-RunShellScript",
+              Comment: "Deploy monitored application stack",
+              Parameters: {
+                commands: [
+                  "echo '\''" + $script_base64 + "'\'' | base64 -d > /tmp/deploy-stack.sh",
+                  "chmod 700 /tmp/deploy-stack.sh",
+                  "/tmp/deploy-stack.sh '\''" + $image + "'\'' '\''" + $release_url + "'\''",
+                  "rm -f /tmp/deploy-stack.sh"
+                ]
+              }
+            }' > /tmp/ssm-deployment.json
+
           COMMAND_ID=$(aws ssm send-command \
-            --region "${{ vars.AWS_REGION  }}" \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy devops-pipeline ${{ github.sha }}" \
-            --parameters "commands=[
-              \"set -e\",
-              \"cloud-init status --wait\",
-              \"test -f /var/log/devops-bootstrap-complete\",
-              \"command -v docker\",
-              \"systemctl is-active --quiet docker\",
-              \"rm -rf /tmp/devops-release\",
-              \"mkdir -p /tmp/devops-release\",
-              \"curl --fail --location '$RELEASE_URL' --output /tmp/devops-release.tar.gz\",
-              \"tar -xzf /tmp/devops-release.tar.gz --directory /tmp/devops-release --strip-components=1\",
-              \"mkdir -p /opt/devops-pipeline\",
-              \"rm -rf /opt/devops-pipeline/monitoring\",
-              \"cp -r /tmp/devops-release/compose.yaml /opt/devops-pipeline/compose.yaml\",
-              \"cp -r /tmp/devops-release/monitoring /opt/devops-pipeline/monitoring\",
-              \"test -f /opt/devops-pipeline/.grafana_admin_password || openssl rand -hex 16 > /opt/devops-pipeline/.grafana_admin_password\",
-              \"chmod 600 /opt/devops-pipeline/.grafana_admin_password\",
-              \"printf 'APP_IMAGE=%s\\nGRAFANA_ADMIN_PASSWORD=%s\\n' '$IMAGE' \\\"\\$(cat /opt/devops-pipeline/.grafana_admin_password)\\\" > /opt/devops-pipeline/.env\",
-              \"chmod 600 /opt/devops-pipeline/.env\",
-              \"cd /opt/devops-pipeline && docker compose pull\",
-              \"cd /opt/devops-pipeline && docker compose up -d --remove-orphans\",
-              \"sleep 10\",
-              \"curl --fail http://localhost/health\",
-              \"curl --fail http://localhost:9090/-/ready\",
-              \"curl --fail http://localhost:3000/api/health\",
-              \"cd /opt/devops-pipeline && docker compose ps\",
-              \"rm -rf /tmp/devops-release /tmp/devops-release.tar.gz\"
-            ]" \
+            --region "${{ vars.AWS_REGION }}" \
+            --cli-input-json file:///tmp/ssm-deployment.json \
             --query "Command.CommandId" \
             --output text)
+
+          rm -f /tmp/ssm-deployment.json
 
           echo "COMMAND_ID=$COMMAND_ID" >> "$GITHUB_ENV"
           echo "Deployment command: $COMMAND_ID"
