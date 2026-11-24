@@ -145,25 +145,48 @@ jobs:
       - name: Wait for EC2 to become SSM managed
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          echo "Caller identity:"
+          aws sts get-caller-identity
+
+          echo "Target instance: $INSTANCE_ID"
+
+          echo "Testing Systems Manager access:"
+          aws ssm describe-instance-information \
+            --region "${{ vars.AWS_REGION }}" \
+            --output table
+
           echo "Waiting for instance $INSTANCE_ID to become available in Systems Manager..."
 
           for i in {1..30}; do
             STATUS=$(aws ssm describe-instance-information \
               --region "${{ vars.AWS_REGION }}" \
-              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
-              --query "InstanceInformationList[0].PingStatus" \
-              --output text 2>/dev/null || true)
+              --query "InstanceInformationList[?InstanceId=='$INSTANCE_ID'].PingStatus | [0]" \
+              --output text)
+
+            echo "Attempt $i: SSM status is '$STATUS'"
 
             if [ "$STATUS" = "Online" ]; then
               echo "Instance is online in Systems Manager."
               exit 0
             fi
 
-            echo "SSM not ready yet..."
             sleep 10
           done
 
-          echo "Timed out waiting for SSM."
+          echo "Timed out waiting for instance $INSTANCE_ID to become SSM managed."
+
+          aws ec2 describe-instances \
+            --region "${{ vars.AWS_REGION }}" \
+            --instance-ids "$INSTANCE_ID" \
+            --query "Reservations[0].Instances[0].[State.Name,IamInstanceProfile.Arn,PublicIpAddress]" \
+            --output table || true
+
+          aws ssm describe-instance-information \
+            --region "${{ vars.AWS_REGION }}" \
+            --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+            --output table || true
+
+
           exit 1
 
       - name: Deploy application through AWS Systems Manager
