@@ -140,7 +140,7 @@ jobs:
         working-directory: terraform
         run: |
           INSTANCE_ID=$(terraform output -raw instance_id)
-          echo "INSTANCE_ID=$INTANCE_ID" >> "$GITHUB_ENV"
+          echo "INSTANCE_ID=$INSTANCE_ID" >> "$GITHUB_ENV"
 
       - name: Wait for EC2 to become SSM managed
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
