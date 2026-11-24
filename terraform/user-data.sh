@@ -30,3 +30,11 @@ systemctl enable docker
 systemctl start docker
 
 touch /var/log/devops-bootstrap-complete
+
+# Ensure AWS Systems Manager Agent is installed and running
+if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
+    snap install amazon-ssm-agent --classic
+fi
+
+systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+systemctl restart snap.amazon-ssm-agent.amazon-ssm-agent.service
