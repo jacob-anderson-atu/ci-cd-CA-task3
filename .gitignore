@@ -10,3 +10,6 @@ __pycache__/
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+.env
+.grafana_admin_password

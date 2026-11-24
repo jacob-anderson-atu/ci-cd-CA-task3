@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: DevOps Pipeline
+    orgId: 1
+    folder: DevOps Pipeline
+    type: file
+    disableDeleteion: false
+    editable: true
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards

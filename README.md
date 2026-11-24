@@ -130,10 +130,10 @@ Current implementation:
 - [x] Static analysis
 - [x] Security analysis
 - [x] Docker containerisation
-- [ ] GitHub Actions CI pipeline
-- [ ] Trivy vulnerability scanning
-- [ ] AWS EC2 deployment
-- [ ] Docker Compose deployment
-- [ ] Prometheus monitoring
-- [ ] Grafana dashboard
+- [x] GitHub Actions CI pipeline
+- [x] Trivy vulnerability scanning
+- [x] AWS EC2 deployment
+- [x] Docker Compose deployment
+- [x] Prometheus monitoring
+- [x] Grafana dashboard
 - [ ] Automated end-to-end deployment
