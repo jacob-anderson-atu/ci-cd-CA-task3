@@ -200,6 +200,10 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy devops-pipeline ${{ github.sha }}" \
             --parameters "commands=[
+              \"cloud-init status --wait\",
+              \"test -f /var/log/devops-bootstrap-complete\",
+              \"command -v docker\",
+              \"systemctl is-active --quiet docker\",
               \"docker pull $IMAGE\",
               \"docker stop devops-pipeline || true\",
               \"docker rm devops-pipeline || true\",
