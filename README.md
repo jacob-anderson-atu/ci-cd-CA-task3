@@ -1,4 +1,4 @@
-# DevOps Mini-Pipeline
+# DevOps Pipeline
 
 This project is a small Flask web application that I used to build a complete CI/CD pipeline.
 
