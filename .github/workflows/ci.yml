@@ -229,17 +229,47 @@ jobs:
           echo "COMMAND_ID=$COMMAND_ID" >> "$GITHUB_ENV"
           echo "Deployment command: $COMMAND_ID"
 
-      - name: Wait for deployment
+      - name: Wait for deployment and show results
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          set +e
+          set -euo pipefail
 
-          aws ssm wait command-executed \
-            --region "${{ vars.AWS_REGION }}" \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$INSTANCE_ID"
+          echo "Waiting for SSM deployment command $COMMAND_ID..."
 
-          WAITER_EXIT=$?
+          FINAL_STATUS=""
+
+          for i in {1..60}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --region "${{ vars.AWS_REGION }}" \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+
+            echo "Attempt $i: deployment status is '$STATUS'"
+
+            case "$STATUS" in
+              Success)
+                FINAL_STATUS="Success"
+                break
+                ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                FINAL_STATUS="$STATUS"
+                break
+                ;;
+              Pending|InProgress|Delayed)
+                sleep 10
+                ;;
+              *)
+                echo "Unexpected SSM status: $STATUS"
+                sleep 10
+                ;;
+            esac
+          done
+
+          if [ -z "$FINAL_STATUS" ]; then
+            FINAL_STATUS="WorkflowTimeout"
+          fi
 
           echo "Deployment command result:"
 
@@ -255,7 +285,12 @@ jobs:
               StandardError:StandardErrorContent
             }'
 
-          exit "$WAITER_EXIT"
+          if [ "$FINAL_STATUS" != "Success" ]; then
+            echo "Deployment did not complete successfully: $FINAL_STATUS"
+            exit 1
+          fi
+
+          echo "SSM deployment completed successfully."
 
       - name: Verify public deployment
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
