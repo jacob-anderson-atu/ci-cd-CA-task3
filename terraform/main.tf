@@ -89,6 +89,8 @@ resource "aws_instance" "pipeline" {
 
   user_data = file("${path.module}/user-data.sh")
 
+  depends_on = [aws_iam_role_policy_attachment.ssm_core]
+
   root_block_device {
     volume_type           = "gp3"
     encrypted             = true
