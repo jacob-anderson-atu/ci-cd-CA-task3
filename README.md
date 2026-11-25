@@ -79,3 +79,5 @@ scripts/         EC2 deployment script
 compose.yaml     Application and monitoring stack
 Dockerfile       Application container image
 ```
+
+Demo
