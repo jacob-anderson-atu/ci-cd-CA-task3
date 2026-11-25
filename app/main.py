@@ -27,6 +27,8 @@ def health():
         status="healthy"
     )
 
+# Demo comment
+
 if __name__ == '__main__':
     host = os.getenv("APP_HOST", "127.0.0.1") # defaults, docker can override binds
     port = int(os.getenv("APP_PORT", "5000"))
